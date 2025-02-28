@@ -214,7 +214,7 @@ impl Node<Option<cst::Policy>> {
         self.to_policy_template(id)
     }
 
-    /// Convert `cst::Policy` to an AST `InlinePolicy` or `Template`
+    /// Convert `cst::Policy` to an AST `StaticPolicy` or `Template`
     pub fn to_policy_or_template(
         &self,
         id: ast::PolicyID,
@@ -1071,7 +1071,6 @@ impl Node<Option<cst::Cond>> {
                 convert_expr_error_to_parse_error::<Build>(
                     self.to_ast_err(ToASTErrorKind::EmptyClause(Some(ident)))
                         .into(),
-                    #[cfg(feature = "tolerant-ast")]
                     Some(&self.loc),
                 )
             }
@@ -1173,7 +1172,6 @@ where
                     loc.clone(),
                 )
                 .into(),
-                #[cfg(feature = "tolerant-ast")]
                 Some(&loc),
             ),
             Self::StrLit { lit, loc } => {
@@ -1292,7 +1290,6 @@ impl Node<Option<cst::Expr>> {
                 let e = ToASTError::new(ToASTErrorKind::CSTErrorNode, self.loc.clone());
                 return Ok(ExprOrSpecial::Expr {
                     expr: convert_expr_error_to_parse_error::<Build>(e.into(), Some(&self.loc))?,
-                    #[cfg(feature = "tolerant-ast")]
                     loc: self.loc.clone(),
                 });
             }
@@ -5531,17 +5528,6 @@ mod tests {
     // Test parsing AST that allows Error nodes
     #[cfg(feature = "tolerant-ast")]
     #[test]
-    fn repro_coles_bug() {
-        let src = r#"
-            permit(principal, action, resource) when { principal == U};
-        "#;
-        let p = assert_parse_policy_allows_errors(src);
-        println!("{:?}", p);
-    }
-
-    // Test parsing AST that allows Error nodes
-    #[cfg(feature = "tolerant-ast")]
-    #[test]
     fn parsing_with_errors_succeeds_with_invalid_variable_in_when() {
         let src = r#"
             permit(principal, action, resource) when { pri };
@@ -5925,7 +5911,7 @@ mod tests {
         let src = r#"
             permit(principal is something in, action, resource);
         "#;
-        let parsed = assert_parse_policy_allows_errors(src);
+        assert_parse_policy_allows_errors(src);
     }
 
     #[cfg(feature = "tolerant-ast")]
