@@ -4550,7 +4550,7 @@ action CreateList in Create appliesTo {
     #[test]
     fn principals() {
         let schema = schema();
-        println!("{:?}", schema);
+        // schema.actions().for_each(|a| println!("{:?}", a));
         // let principals = schema.principals().collect::<HashSet<_>>();
         // assert_eq!(principals.len(), 1);
         // let user: EntityTypeName = "User".parse().unwrap();
