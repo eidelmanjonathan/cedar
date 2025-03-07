@@ -30,7 +30,7 @@ use cedar_policy_validator::entity_manifest;
 pub use cedar_policy_validator::entity_manifest::{
     AccessTrie, EntityManifest, EntityRoot, Fields, RootAccessTrie,
 };
-use cedar_policy_validator::json_schema;
+use cedar_policy_validator::json_schema::{self, ActionName};
 use cedar_policy_validator::typecheck::{PolicyCheck, Typechecker};
 pub use id::*;
 
@@ -1501,9 +1501,10 @@ impl SchemaFragment {
         id: &EntityId,
     ) -> Option<impl Iterator<Item = (&str, &str)>> {
         let ns_def = self.lossless.0.get(&namespace.map(|n| n.0))?;
+        let action_name = ActionName {name: id.as_ref().into(), loc: None};
         ns_def
             .actions
-            .get(id.as_ref())
+            .get(&action_name)
             .map(|a| annotations_to_pairs(&a.annotations))
     }
 
@@ -1520,9 +1521,11 @@ impl SchemaFragment {
         id: &EntityId,
         annotation_key: impl AsRef<str>,
     ) -> Option<&str> {
+        let action_name = ActionName {name: id.as_ref().into(), loc: None};
+
         let ns_def = self.lossless.0.get(&namespace.map(|n| n.0))?;
         get_annotation_by_key(
-            &ns_def.actions.get(id.as_ref())?.annotations,
+            &ns_def.actions.get(&action_name)?.annotations,
             annotation_key,
         )
     }
@@ -4495,60 +4498,64 @@ mod test_access {
     use super::*;
 
     fn schema() -> Schema {
-//         let src = r#"
-//           type Task = {
-//     "id": Long,
-//     "name": String,
-//     "state": String,
-// };
+                let src = r#"
+                  type Task = {
+            "id": Long,
+            "name": String,
+            "state": String,
+        };
 
-// type Tasks = Set<Task>;
-// entity List in [Application] = {
-//   "editors": Team,
-//   "name": String,
-//   "owner": User,
-//   "readers": Team,
-//   "tasks": Tasks,
-// };
-// entity Application;
-// entity User in [Team, Application] = {
-//   "joblevel": Long,
-//   "location": String,
-// };
+        type Tasks = Set<Task>;
+        entity List in [Application] = {
+          "editors": Team,
+          "name": String,
+          "owner": User,
+          "readers": Team,
+          "tasks": Tasks,
+        };
+        entity Application;
+        entity User in [Team, Application] = {
+          "joblevel": Long,
+          "location": String,
+        };
 
-// entity CoolList;
+        entity CoolList;
 
-// entity Team in [Team, Application];
+        entity Team in [Team, Application];
 
-// action Read, Write, Create;
+        action Read, Write, Create;
 
-// action DeleteList, EditShare, UpdateList, CreateTask, UpdateTask, DeleteTask in Write appliesTo {
-//     principal: [User],
-//     resource : [List]
-// };
+        action DeleteList, EditShare, UpdateList, CreateTask, UpdateTask, DeleteTask in Write appliesTo {
+            principal: [User],
+            resource : [List]
+        };
 
-// action GetList in Read appliesTo {
-//     principal : [User],
-//     resource : [List, CoolList]
-// };
+        action GetList in Read appliesTo {
+            principal : [User],
+            resource : [List, CoolList]
+        };
 
-// action GetLists in Read appliesTo {
-//     principal : [User],
-//     resource : [Application]
-// };
+        action GetLists in Read appliesTo {
+            principal : [User],
+            resource : [Application]
+        };
 
-// action CreateList in Create appliesTo {
-//     principal : [User],
-//     resource : [Application]
-// };
+        action CreateList in Create appliesTo {
+            principal : [User],
+            resource : [Application]
+        };
 
-//         "#;
+                "#;
 
-let src = r#"
-entity Application;
-
-entity CoolList;
-        "#;
+        // let src = r#"
+        // entity Application;
+        // entity User;
+        // action Read, Write, Create;
+        // action CreateList in Create appliesTo {
+        //     principal : [User],
+        //     resource : [Application]
+        // };
+        // "#;
 
         src.parse().unwrap()
     }
@@ -4556,19 +4563,32 @@ entity CoolList;
     #[test]
     fn principals() {
         let schema = schema();
-        for et in  schema.0.entity_type_names() {
-            println!("ET: {:?} {:?}", et.name(), et.loc());
-        }
-    
-       
-        // schema.actions().for_each(|a| println!("{:?}", a));
-        // let principals = schema.principals().collect::<HashSet<_>>();
-        // assert_eq!(principals.len(), 1);
-        // let user: EntityTypeName = "User".parse().unwrap();
-        // assert!(principals.contains(&user));
-        // let principals = schema.principals().collect::<Vec<_>>();
-        // assert!(principals.len() > 1);
-        // assert!(principals.iter().all(|ety| **ety == user));
+        // for et in schema.0.entity_type_names() {
+        //     println!(
+        //         "ET: {:?} {:?}",
+        //         et.name().basename(),
+        //         et.loc().unwrap().span
+        //     );
+        // }
+
+        // for et in schema.0.action_entities().unwrap() {
+        //     println!("Action UID: {:?}", et.uid());
+        //     println!("Parents: ------------------");
+        //     for p in et.parents() {
+        //         println!("{:?}", p)
+        //     }
+        //     println!("----------------------");
+        // }
+
+        let principals = schema.principals().collect::<HashSet<_>>();
+        println!("Principal:  {:?}", principals);
+        assert_eq!(principals.len(), 1);
+        let user: EntityTypeName = "User".parse().unwrap();
+        assert!(principals.contains(&user));
+        let principals = schema.principals().collect::<Vec<_>>();
+        assert!(principals.len() > 1);
+        assert!(principals.iter().all(|ety| **ety == user));
+        assert!(principals.iter().all(|ety| ety.0.loc().is_some()));        
     }
 
     #[test]
@@ -4588,6 +4608,9 @@ entity CoolList;
             "CoolList".parse().unwrap(),
         ]);
         assert_eq!(resources, expected);
+        assert!(resources.iter().all(|ety| ety.0.loc().is_some()));
+        assert!(resources.iter().all(|ety| {println!("{:?}", ety.0.loc().unwrap().span); true}));
+
     }
 
     #[test]
@@ -4601,6 +4624,9 @@ entity CoolList;
             .cloned()
             .collect::<Vec<_>>();
         assert_eq!(got, vec!["User".parse().unwrap()]);
+        assert!(got.iter().all(|ety| ety.0.loc().is_some()));
+        assert!(got.iter().all(|ety| {println!("{:?}", ety.0.loc().unwrap().span); true}));
+
         assert!(schema.principals_for_action(&delete_user).is_none());
     }
 
@@ -4617,12 +4643,16 @@ entity CoolList;
             .cloned()
             .collect::<Vec<_>>();
         assert_eq!(got, vec!["List".parse().unwrap()]);
+        assert!(got.iter().all(|ety| ety.0.loc().is_some()));
+        assert!(got.iter().all(|ety| {println!("{:?}", ety.0.loc().unwrap().span); true}));
         let got = schema
             .resources_for_action(&create_list)
             .unwrap()
             .cloned()
             .collect::<Vec<_>>();
         assert_eq!(got, vec!["Application".parse().unwrap()]);
+        assert!(got.iter().all(|ety| ety.0.loc().is_some()));
+        assert!(got.iter().all(|ety| {println!("{:?}", ety.0.loc().unwrap().span); true}));
         let got = schema
             .resources_for_action(&get_list)
             .unwrap()
@@ -4632,6 +4662,8 @@ entity CoolList;
             got,
             HashSet::from(["List".parse().unwrap(), "CoolList".parse().unwrap()])
         );
+        assert!(got.iter().all(|ety| ety.0.loc().is_some()));
+        assert!(got.iter().all(|ety| {println!("{:?}", ety.0.loc().unwrap().span); true}));
         assert!(schema.principals_for_action(&delete_user).is_none());
     }
 
@@ -4644,6 +4676,8 @@ entity CoolList;
             .unwrap()
             .cloned()
             .collect::<HashSet<_>>();
+        assert!(parents.iter().all(|ety| ety.0.loc().is_some()));
+        assert!(parents.iter().all(|ety| {println!("{:?}", ety); true}));
         let expected = HashSet::from(["Team".parse().unwrap(), "Application".parse().unwrap()]);
         assert_eq!(parents, expected);
         let parents = schema
@@ -4651,6 +4685,8 @@ entity CoolList;
             .unwrap()
             .cloned()
             .collect::<HashSet<_>>();
+        assert!(parents.iter().all(|ety| ety.0.loc().is_some()));
+        assert!(parents.iter().all(|ety| {println!("PAIRS: {:?}: {:?}", ety.clone(), ety.0.loc().unwrap().span); true}));
         let expected = HashSet::from(["Application".parse().unwrap()]);
         assert_eq!(parents, expected);
         assert!(schema.ancestors(&"Foo".parse().unwrap()).is_none());
@@ -4659,6 +4695,8 @@ entity CoolList;
             .unwrap()
             .cloned()
             .collect::<HashSet<_>>();
+        assert!(parents.iter().all(|ety| ety.0.loc().is_some()));
+        assert!(parents.iter().all(|ety| {println!("{:?}: {:?}", ety.clone(), ety.0.loc().unwrap().span); true}));
         let expected = HashSet::from([]);
         assert_eq!(parents, expected);
     }
@@ -4671,6 +4709,8 @@ entity CoolList;
             .into_iter()
             .map(|ty| format!("Action::\"{ty}\"").parse().unwrap())
             .collect::<HashSet<EntityUid>>();
+        assert!(expected.iter().all(|ety| ety.0.loc().is_some()));
+        assert!(expected.iter().all(|ety| {println!("{:?}", ety.0.loc().unwrap().span); true}));
         assert_eq!(groups, expected);
     }
 
