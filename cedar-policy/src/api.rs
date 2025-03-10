@@ -4547,13 +4547,25 @@ mod test_access {
 
         //         "#;
 
-        let src = r#"
-                   type Task = {
-             "id": Long,
-             "name": String,
-             "state": String,
-         };
-        "#;
+                let src = r#"
+
+        entity User, List;
+        action Read, Write, Create;
+
+        action DeleteList, EditShare, UpdateList, CreateTask, UpdateTask, DeleteTask in Write appliesTo {
+            principal: [User],
+            resource : [List]
+        };
+
+                "#;
+
+        // let src = r#"
+        //            type Task = {
+        //      "id": Long,
+        //      "name": String,
+        //      "state": String,
+        //  };
+        // "#;
 
         src.parse().unwrap()
     }
@@ -4561,20 +4573,22 @@ mod test_access {
     #[test]
     fn principals() {
         let schema = schema();
-        for et in schema.0.entity_type_names() {
-            println!(
-                "ET: {:?} {:?}",
-                et.name().basename(),
-                et.loc().unwrap().span
-            );
-        }
+        // for et in schema.0.entity_type_names() {
+        //     println!(
+        //         "ET: {:?} {:?}",
+        //         et.name().basename(),
+        //         et.loc().unwrap().span
+        //     );
+        // }
 
-        for et in schema.0.action_entities().unwrap() {
-            println!("Action UID: {:?}", et.uid());
-            println!("Parents: ------------------");
-            for p in et.parents() {
-                println!("{:?}", p)
-            }
+        for et in schema.0.action_ids() {
+            println!("----------------------");
+
+            println!("Action UID: {:?}: {:?}", et.clone(), et.clone().loc);
+            // println!("Parents: ------------------");
+            // for p in et.parents() {
+            //     println!("{:?}", p)
+            // }
             println!("----------------------");
         }
         println!("{:?}", schema);
