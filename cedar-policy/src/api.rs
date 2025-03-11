@@ -1501,7 +1501,10 @@ impl SchemaFragment {
         id: &EntityId,
     ) -> Option<impl Iterator<Item = (&str, &str)>> {
         let ns_def = self.lossless.0.get(&namespace.map(|n| n.0))?;
-        let action_name = ActionName {name: id.as_ref().into(), loc: None};
+        let action_name = ActionName {
+            name: id.as_ref().into(),
+            loc: None,
+        };
         ns_def
             .actions
             .get(&action_name)
@@ -1521,7 +1524,10 @@ impl SchemaFragment {
         id: &EntityId,
         annotation_key: impl AsRef<str>,
     ) -> Option<&str> {
-        let action_name = ActionName {name: id.as_ref().into(), loc: None};
+        let action_name = ActionName {
+            name: id.as_ref().into(),
+            loc: None,
+        };
 
         let ns_def = self.lossless.0.get(&namespace.map(|n| n.0))?;
         get_annotation_by_key(
@@ -4498,58 +4504,31 @@ mod test_access {
     use super::*;
 
     fn schema() -> Schema {
-        //         let src = r#"
-        //           type Task = {
-        //     "id": Long,
-        //     "name": String,
-        //     "state": String,
-        // };
+        let src = r#"
+                  type Task = {
+            "id": Long,
+            "name": String,
+            "state": String,
+        };
 
-        // type Tasks = Set<Task>;
-        // entity List in [Application] = {
-        //   "editors": Team,
-        //   "name": String,
-        //   "owner": User,
-        //   "readers": Team,
-        //   "tasks": Tasks,
-        // };
-        // entity Application;
-        // entity User in [Team, Application] = {
-        //   "joblevel": Long,
-        //   "location": String,
-        // };
+        type Tasks = Set<Task>;
+        entity List in [Application] = {
+          "editors": Team,
+          "name": String,
+          "owner": User,
+          "readers": Team,
+          "tasks": Tasks,
+        };
+        entity Application;
+        entity User in [Team, Application] = {
+          "joblevel": Long,
+          "location": String,
+        };
 
-        // entity CoolList;
+        entity CoolList;
 
-        // entity Team in [Team, Application];
+        entity Team in [Team, Application];
 
-        // action Read, Write, Create;
-
-        // action DeleteList, EditShare, UpdateList, CreateTask, UpdateTask, DeleteTask in Write appliesTo {
-        //     principal: [User],
-        //     resource : [List]
-        // };
-
-        // action GetList in Read appliesTo {
-        //     principal : [User],
-        //     resource : [List, CoolList]
-        // };
-
-        // action GetLists in Read appliesTo {
-        //     principal : [User],
-        //     resource : [Application]
-        // };
-
-        // action CreateList in Create appliesTo {
-        //     principal : [User],
-        //     resource : [Application]
-        // };
-
-        //         "#;
-
-                let src = r#"
-
-        entity User, List;
         action Read, Write, Create;
 
         action DeleteList, EditShare, UpdateList, CreateTask, UpdateTask, DeleteTask in Write appliesTo {
@@ -4557,7 +4536,34 @@ mod test_access {
             resource : [List]
         };
 
+        action GetList in Read appliesTo {
+            principal : [User],
+            resource : [List, CoolList]
+        };
+
+        action GetLists in Read appliesTo {
+            principal : [User],
+            resource : [Application]
+        };
+
+        action CreateList in Create appliesTo {
+            principal : [User],
+            resource : [Application]
+        };
+
                 "#;
+
+        //         let src = r#"
+
+        // entity User, List;
+        // action Read, Write, Create;
+
+        // action DeleteList, EditShare, UpdateList, CreateTask, UpdateTask, DeleteTask in Write appliesTo {
+        //     principal: [User],
+        //     resource : [List]
+        // };
+
+        //         "#;
 
         // let src = r#"
         //            type Task = {
@@ -4592,15 +4598,15 @@ mod test_access {
             println!("----------------------");
         }
         println!("{:?}", schema);
-        // let principals = schema.principals().collect::<HashSet<_>>();
-        // println!("Principal:  {:?}", principals);
-        // assert_eq!(principals.len(), 1);
-        // let user: EntityTypeName = "User".parse().unwrap();
-        // assert!(principals.contains(&user));
-        // let principals = schema.principals().collect::<Vec<_>>();
-        // assert!(principals.len() > 1);
-        // assert!(principals.iter().all(|ety| **ety == user));
-        // assert!(principals.iter().all(|ety| ety.0.loc().is_some()));        
+        let principals = schema.principals().collect::<HashSet<_>>();
+        println!("Principal:  {:?}", principals);
+        assert_eq!(principals.len(), 1);
+        let user: EntityTypeName = "User".parse().unwrap();
+        assert!(principals.contains(&user));
+        let principals = schema.principals().collect::<Vec<_>>();
+        assert!(principals.len() > 1);
+        assert!(principals.iter().all(|ety| **ety == user));
+        assert!(principals.iter().all(|ety| ety.0.loc().is_some()));
     }
 
     #[test]
@@ -4621,8 +4627,10 @@ mod test_access {
         ]);
         assert_eq!(resources, expected);
         assert!(resources.iter().all(|ety| ety.0.loc().is_some()));
-        assert!(resources.iter().all(|ety| {println!("{:?}", ety.0.loc().unwrap().span); true}));
-
+        assert!(resources.iter().all(|ety| {
+            println!("{:?}", ety.0.loc().unwrap().span);
+            true
+        }));
     }
 
     #[test]
@@ -4637,7 +4645,10 @@ mod test_access {
             .collect::<Vec<_>>();
         assert_eq!(got, vec!["User".parse().unwrap()]);
         assert!(got.iter().all(|ety| ety.0.loc().is_some()));
-        assert!(got.iter().all(|ety| {println!("{:?}", ety.0.loc().unwrap().span); true}));
+        assert!(got.iter().all(|ety| {
+            println!("{:?}", ety.0.loc().unwrap().span);
+            true
+        }));
 
         assert!(schema.principals_for_action(&delete_user).is_none());
     }
@@ -4656,7 +4667,10 @@ mod test_access {
             .collect::<Vec<_>>();
         assert_eq!(got, vec!["List".parse().unwrap()]);
         assert!(got.iter().all(|ety| ety.0.loc().is_some()));
-        assert!(got.iter().all(|ety| {println!("{:?}", ety.0.loc().unwrap().span); true}));
+        assert!(got.iter().all(|ety| {
+            println!("{:?}", ety.0.loc().unwrap().span);
+            true
+        }));
         let got = schema
             .resources_for_action(&create_list)
             .unwrap()
@@ -4664,7 +4678,10 @@ mod test_access {
             .collect::<Vec<_>>();
         assert_eq!(got, vec!["Application".parse().unwrap()]);
         assert!(got.iter().all(|ety| ety.0.loc().is_some()));
-        assert!(got.iter().all(|ety| {println!("{:?}", ety.0.loc().unwrap().span); true}));
+        assert!(got.iter().all(|ety| {
+            println!("{:?}", ety.0.loc().unwrap().span);
+            true
+        }));
         let got = schema
             .resources_for_action(&get_list)
             .unwrap()
@@ -4675,7 +4692,10 @@ mod test_access {
             HashSet::from(["List".parse().unwrap(), "CoolList".parse().unwrap()])
         );
         assert!(got.iter().all(|ety| ety.0.loc().is_some()));
-        assert!(got.iter().all(|ety| {println!("{:?}", ety.0.loc().unwrap().span); true}));
+        assert!(got.iter().all(|ety| {
+            println!("{:?}", ety.0.loc().unwrap().span);
+            true
+        }));
         assert!(schema.principals_for_action(&delete_user).is_none());
     }
 
@@ -4689,7 +4709,10 @@ mod test_access {
             .cloned()
             .collect::<HashSet<_>>();
         assert!(parents.iter().all(|ety| ety.0.loc().is_some()));
-        assert!(parents.iter().all(|ety| {println!("{:?}", ety); true}));
+        assert!(parents.iter().all(|ety| {
+            println!("{:?}", ety);
+            true
+        }));
         let expected = HashSet::from(["Team".parse().unwrap(), "Application".parse().unwrap()]);
         assert_eq!(parents, expected);
         let parents = schema
@@ -4698,7 +4721,10 @@ mod test_access {
             .cloned()
             .collect::<HashSet<_>>();
         assert!(parents.iter().all(|ety| ety.0.loc().is_some()));
-        assert!(parents.iter().all(|ety| {println!("PAIRS: {:?}: {:?}", ety.clone(), ety.0.loc().unwrap().span); true}));
+        assert!(parents.iter().all(|ety| {
+            println!("PAIRS: {:?}: {:?}", ety.clone(), ety.0.loc().unwrap().span);
+            true
+        }));
         let expected = HashSet::from(["Application".parse().unwrap()]);
         assert_eq!(parents, expected);
         assert!(schema.ancestors(&"Foo".parse().unwrap()).is_none());
@@ -4708,7 +4734,10 @@ mod test_access {
             .cloned()
             .collect::<HashSet<_>>();
         assert!(parents.iter().all(|ety| ety.0.loc().is_some()));
-        assert!(parents.iter().all(|ety| {println!("{:?}: {:?}", ety.clone(), ety.0.loc().unwrap().span); true}));
+        assert!(parents.iter().all(|ety| {
+            println!("{:?}: {:?}", ety.clone(), ety.0.loc().unwrap().span);
+            true
+        }));
         let expected = HashSet::from([]);
         assert_eq!(parents, expected);
     }
@@ -4722,7 +4751,14 @@ mod test_access {
             .map(|ty| format!("Action::\"{ty}\"").parse().unwrap())
             .collect::<HashSet<EntityUid>>();
         assert!(groups.iter().all(|ety| ety.0.loc().is_some()));
-        assert!(groups.iter().all(|ety| {println!("action pari:{:?}: {:?}", ety.clone(), ety.0.loc().unwrap().span); true}));
+        assert!(groups.iter().all(|ety| {
+            println!(
+                "action pari:{:?}: {:?}",
+                ety.clone(),
+                ety.0.loc().unwrap().span
+            );
+            true
+        }));
         assert_eq!(groups, expected);
     }
 
@@ -4748,6 +4784,15 @@ mod test_access {
         .map(|ty| format!("Action::\"{ty}\"").parse().unwrap())
         .collect::<HashSet<EntityUid>>();
         assert_eq!(actions, expected);
+        assert!(actions.iter().all(|ety| ety.0.loc().is_some()));
+        assert!(actions.iter().all(|ety| {
+            println!(
+                "action pari:{:?}: {:?}",
+                ety.clone(),
+                ety.0.loc().unwrap().span
+            );
+            true
+        }));
     }
 
     #[test]
@@ -4825,7 +4870,6 @@ action CreateList in Create appliesTo {
     fn principals() {
         let schema = schema();
         println!("SCHEMA: {:?}", schema);
-
 
         let principals = schema.principals().collect::<HashSet<_>>();
         assert_eq!(principals.len(), 1);
